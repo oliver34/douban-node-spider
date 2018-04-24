@@ -3,6 +3,8 @@
  */
 
 const pupprteer = require('puppeteer');
+const fs = require('fs');
+
 let scape = async () => {
   const browser = await pupprteer.launch({
     headless: false
@@ -12,9 +14,12 @@ let scape = async () => {
   await page.waitFor(1000); // 等待页面加载完毕
   let screening = await page.evaluate(getScreeningInfo);
   let hotMovie = await page.evaluate(getHotMovieInfo);
+  let hotTv = await page.evaluate(getHotTvInfo);
   browser.close();
   return {
-    hotMovie
+    screening,
+    hotMovie,
+    hotTv
   };
 };
 
@@ -43,10 +48,10 @@ function getHotMovieInfo() { // 获取热门电影
   let hotMovieArray = [];
   let elements = [...document.querySelectorAll('.gaia-movie .slide-page')];
   elements.splice(0, 1).splice(elements.length - 1, 1);
-  for(let el of elements) {
+  for (let el of elements) {
     let itemArray = [];
-    for(let child of el.children) {
-      let titleArray = (child.innerText.replace(/[\r\n]/g, '')).split(' ');
+    for (let child of el.children) {
+      let titleArray = (child.innerText.replace(/[\r\n]/g, '')).replace(/^\s*|\s*$/g, '').split(' ');
       itemArray.push({
         title: titleArray[0],
         rate: titleArray[1],
@@ -55,9 +60,34 @@ function getHotMovieInfo() { // 获取热门电影
     }
     hotMovieArray.push(itemArray);
   }
-  return JSON.stringify(hotMovieArray);
+  return hotMovieArray;
+}
+
+function getHotTvInfo() {
+  let hotTvArray = [];
+  let elements = [...document.querySelectorAll('.gaia-tv .slide-page')];
+  elements.splice(0, 1).splice(elements.length - 1, 1);
+  for (let el of elements) {
+    let itemArray = [];
+    for (let child of el.children) {
+      let titleArray = (child.innerText.replace(/[\r\n]/g, '')).replace(/^\s*|\s*$/g, '').split(' ');
+      itemArray.push({
+        title: titleArray[0],
+        rate: titleArray[1],
+        img: child.querySelector('img').src
+      });
+    }
+    hotTvArray.push(itemArray);
+  }
+  return hotTvArray;
 }
 
 scape().then((value) => {
-  console.log(value);
+  fs.writeFile('./data/home.json', JSON.stringify(value), function(err) {
+    if(err) {
+      console.log(err);
+      return;
+    }
+    console.log('saved successfuly');
+  });
 });
